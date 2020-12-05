@@ -8,10 +8,14 @@ import com.masivian.roulette.exceptions.RouletteException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Slf4j
+@Component
 public class RouletteService {
 
     @Autowired
@@ -61,26 +65,35 @@ public class RouletteService {
     }
 
     public List<Double> closeRoulette (Long rouletteId) throws RouletteException {
-        Random rand = new Random(); //instance of random class
+        Random rand = new Random();
 
         Roulette roulette = getRouletteById(rouletteId);
 
-        int winningNumber = rand.nextInt(maximumBettableNumber);
+        long winningNumber = rouletteId < maximumBettableNumber ? rouletteId : rand.nextInt(maximumBettableNumber);
+        log.info("The winning number was " + winningNumber);
 
         List<Double> betResults = new LinkedList<>();
         for (Bet bet : roulette.getPlacedBets()) {
-            if (bet.getNumber().isPresent() && bet.getNumber().get() == winningNumber) {
+            if (bet.getNumber() != null && bet.getNumber() == winningNumber) {
                 betResults.add(bet.getValue() * numericBetMultiplier);
             }
-            if (bet.getColor().isPresent() && bet.getColor().get().equals(getNumbersColor(winningNumber))) {
+            else if (bet.getColor() != null && bet.getColor().equals(getNumbersColor(winningNumber))) {
                 betResults.add(bet.getValue() * colorBetMultiplier);
-            }
+            } else
+                betResults.add(0d);
         }
+
+        roulette.closeRoulette();
+        repository.save(roulette);
 
         return betResults;
 
     }
 
+    public List<Roulette> getRoulettes () {
+        return StreamSupport.stream(repository.findAll().spliterator(), false)
+                .collect(Collectors.toList());
+    }
 
     private Roulette getRouletteById(Long rouletteId) throws RouletteException {
         Roulette roulette = null;
@@ -90,12 +103,12 @@ public class RouletteService {
                 throw new RouletteException("Error, the roulette with id " + rouletteId + " doesn't exist");
             roulette = theRoulette.get();
         } catch (Exception e) {
-            throw new RouletteException("Error loading the roulette", e);
+            throw new RouletteException(e.getMessage(), e);
         }
         return roulette;
     }
 
-    private String getNumbersColor (int number) {
+    private String getNumbersColor (long number) {
         if (number % 2 == 0)
             return "red";
         else
@@ -106,6 +119,7 @@ public class RouletteService {
         if (theRoulette.getIsOpen()) {
             Bet cleanBet = validateAndCleanBet(bet);
             theRoulette.placeBet(cleanBet);
+            log.info("Placing bet " + bet + " on roulette " + theRoulette.getId());
             repository.save(theRoulette);
         } else {
             log.error("The roulette with id " + theRoulette.getId() + " is not open for bets");
@@ -114,25 +128,25 @@ public class RouletteService {
     }
 
     private Bet validateAndCleanBet(Bet bet) throws FailedBetException {
-        if (bet.getNumber().isPresent() && bet.getColor().isPresent()) {
+        if (bet.getNumber() == null && bet.getColor() == null) {
             throw new FailedBetException("A bet needs to have either a number or a color");
         }
-        if (bet.getNumber().isEmpty() && bet.getColor().isEmpty()) {
+        if (bet.getNumber() != null && bet.getColor() != null) {
             throw new FailedBetException("A bet cannot be placed on a number and a color at the same time");
         }
         if (bet.getValue() < 0 || bet.getValue() > maximumBetAmount) {
             throw new FailedBetException("The value is not valid, either < 0 or > " + maximumBetAmount);
         }
 
-        if (bet.getNumber().isPresent()) {
-            int theNumber = bet.getNumber().get();
+        if (bet.getNumber() != null) {
+            int theNumber = bet.getNumber();
             if (theNumber < minimumBettableNumber || theNumber > maximumBettableNumber) {
                 throw new FailedBetException("The number is not in the allowed range (" + minimumBettableNumber + " - " + maximumBettableNumber + ")");
             }
             return new Bet(theNumber, bet.getValue());
         }
-        if (bet.getColor().isPresent()) {
-            String theColor = bet.getColor().get().toLowerCase(Locale.ROOT);
+        if (bet.getColor() != null) {
+            String theColor = bet.getColor().toLowerCase(Locale.ROOT);
             if (!allowedBettableColors.toLowerCase(Locale.ROOT).contains(theColor)) {
                 throw new FailedBetException("The color is not valid ( " + allowedBettableColors + ")");
             }

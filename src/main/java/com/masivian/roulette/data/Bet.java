@@ -11,23 +11,40 @@ import java.util.Optional;
 @Setter
 public class Bet implements Serializable {
 
-    private Optional<Integer> number;
-    private Optional<String> color;
+    private Integer number;
+    private String color;
     private Integer value;
 
+    public Bet () {
+
+    }
+
+    public Bet (Integer number, String color, Integer value) {
+        this.number = number;
+        this.color = color;
+        this.value = value;
+    }
+
     public Bet (Integer number, Integer value) {
-        this.number = Optional.of(number);
-        this.color = Optional.empty();
+        this.number = number;
+        this.color = null;
         this.value = value;
     }
 
     public Bet (String color, Integer value) {
-        this.number = Optional.empty();
-        this.color = Optional.of(color);
+        this.number = null;
+        this.color = color;
         this.value = value;
     }
 
-
+    @Override
+    public String toString() {
+        return "Bet{" +
+                "number=" + number +
+                ", color=" + color +
+                ", value=" + value +
+                '}';
+    }
 }
 
 

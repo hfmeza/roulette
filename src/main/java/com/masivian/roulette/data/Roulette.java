@@ -39,6 +39,9 @@ public class Roulette implements Serializable {
         this.placedBets.add(bet);
     }
 
+    public String toString () {
+        return "Roulette id " + id + ", status " + (isOpen ? "open" : "closed");
+    }
 
 }
 
