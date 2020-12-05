@@ -4,7 +4,7 @@
 echo ""
 echo ">+++++++++++++++++++++++<"
 echo "roulette : Creating jar"
-mvn package -DskipTests -Ppackage
+mvn package -Ppackage
 
 # Build docker image
 echo ""
